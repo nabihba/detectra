@@ -1,0 +1,14 @@
+{
+  "name": "detectra",
+  "version": "1.0.0",
+  "description": "Detectra — AI-Generated Image Detection",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.0.0"
+  }
+}

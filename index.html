@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detectra — AI-Generated Image Detection</title>
+  <meta name="description" content="Instantly detect AI-generated images. Upload any photo and Detectra will analyze it for synthetic artifacts, deepfake signatures, and AI fingerprints.">
+  <meta name="keywords" content="AI detection, deepfake detector, fake image checker, AI generated image, synthetic image detection">
+  <meta property="og:title" content="Detectra — AI-Generated Image Detection">
+  <meta property="og:description" content="Instantly detect AI-generated images with advanced AI analysis.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Detectra — AI-Generated Image Detection">
+  <meta name="twitter:description" content="Instantly detect AI-generated images with advanced AI analysis.">
+  <meta name="theme-color" content="#06080d">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔬</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Background Effects -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow--blue"></div>
+  <div class="bg-glow bg-glow--purple"></div>
+
+  <div class="app-container">
+
+    <!-- Navigation -->
+    <nav class="nav" id="nav">
+      <a href="/" class="nav__logo">
+        <div class="nav__icon">🔬</div>
+        <span class="nav__name">Detectra</span>
+        <span class="nav__badge">Beta</span>
+      </a>
+      <div class="nav__links">
+        <a href="#how-it-works" class="nav__link">How it works</a>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero" id="hero">
+      <div class="hero__eyebrow">
+        <span class="hero__eyebrow-dot"></span>
+        AI-Powered Detection
+      </div>
+      <h1 class="hero__title">
+        <span class="hero__title-gradient">Is that image</span><br>
+        <span class="hero__title-accent">real or AI-generated?</span>
+      </h1>
+      <p class="hero__subtitle">
+        Drop any image and Detectra will analyze it for synthetic artifacts, 
+        deepfake signatures, and AI fingerprints — in seconds.
+      </p>
+    </section>
+
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="upload-zone">
+      <div class="upload-zone__content">
+        <div class="upload-zone__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <p class="upload-zone__title">Drop your image here</p>
+        <p class="upload-zone__subtitle">or <span>click to browse</span> · PNG, JPG, WEBP up to 10MB</p>
+      </div>
+      <input type="file" class="upload-zone__input" id="file-input" accept="image/png,image/jpeg,image/webp,image/heic,image/heif">
+    </div>
+
+    <!-- Image Preview -->
+    <div class="preview" id="preview">
+      <div class="preview__card">
+        <div class="preview__image-container">
+          <img class="preview__image" id="preview-image" src="" alt="Uploaded image preview">
+          <div class="preview__scan-line" id="scan-line"></div>
+        </div>
+        <div class="preview__info">
+          <span class="preview__filename" id="preview-filename"></span>
+          <span class="preview__size" id="preview-size"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analyzing State -->
+    <div class="analyzing" id="analyzing">
+      <div class="analyzing__spinner"></div>
+      <p class="analyzing__text">Analyzing image...</p>
+      <p class="analyzing__subtext">Scanning for AI-generated artifacts and patterns</p>
+    </div>
+
+    <!-- Result -->
+    <div class="result" id="result">
+      <div class="result__card">
+        <div class="result__verdict" id="result-verdict">
+          <div class="result__verdict-icon" id="result-icon"></div>
+          <div class="result__verdict-label" id="result-label"></div>
+          <div class="result__confidence">
+            Confidence: <span class="result__confidence-value" id="result-confidence"></span>
+          </div>
+          <div class="result__confidence-bar">
+            <div class="result__confidence-fill" id="result-confidence-fill"></div>
+          </div>
+        </div>
+
+        <div class="result__analysis">
+          <div class="result__analysis-title">Analysis Breakdown</div>
+          <div class="result__analysis-text" id="result-analysis"></div>
+        </div>
+
+        <div class="result__actions">
+          <button class="btn btn--primary" id="btn-new-scan" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            New Scan
+          </button>
+          <button class="btn btn--ghost" id="btn-copy" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy Result
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div class="error-msg" id="error-msg">
+      <div class="error-msg__icon">⚠️</div>
+      <div class="error-msg__text" id="error-text">Something went wrong</div>
+      <div class="error-msg__detail" id="error-detail">Please try again</div>
+      <button class="btn btn--primary" id="btn-retry" type="button">Try Again</button>
+    </div>
+
+    <!-- How It Works -->
+    <section class="how-it-works" id="how-it-works">
+      <div class="how-it-works__title">How It Works</div>
+      <div class="how-it-works__steps">
+        <div class="how-it-works__step">
+          <div class="how-it-works__step-num">1</div>
+          <div class="how-it-works__step-title">Upload</div>
+          <div class="how-it-works__step-desc">Drop any image — photos, screenshots, artwork. We support PNG, JPG, and WEBP.</div>
+        </div>
+        <div class="how-it-works__step">
+          <div class="how-it-works__step-num">2</div>
+          <div class="how-it-works__step-title">Analyze</div>
+          <div class="how-it-works__step-desc">Our AI examines pixel patterns, texture consistency, and generation artifacts.</div>
+        </div>
+        <div class="how-it-works__step">
+          <div class="how-it-works__step-num">3</div>
+          <div class="how-it-works__step-title">Verdict</div>
+          <div class="how-it-works__step-desc">Get an instant result with confidence score and detailed explanation.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p class="footer__text">
+        Detectra · AI-Generated Image Detection · Built with ❤️
+      </p>
+    </footer>
+
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
