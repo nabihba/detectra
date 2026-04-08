@@ -150,8 +150,8 @@
     scanLine.classList.add('preview__scan-line--active');
 
     try {
-      // Convert file to base64
-      const base64 = await fileToBase64(file);
+      // Compress and convert to base64 (keeps payload under Vercel's 4.5MB limit)
+      const { base64, mimeType } = await compressAndEncode(file);
 
       // Call API
       const response = await fetch(CONFIG.apiEndpoint, {
@@ -159,7 +159,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image: base64,
-          mimeType: file.type,
+          mimeType: mimeType,
         }),
       });
 
@@ -270,16 +270,50 @@
   }
 
   // ─── Utilities ───
-  function fileToBase64(file) {
+
+  // Compress image client-side to stay under Vercel's 4.5MB body limit
+  // Resizes to max 1024px on longest side, converts to JPEG 0.85 quality
+  function compressAndEncode(file) {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        // Remove the data:image/...;base64, prefix
-        const base64 = reader.result.split(',')[1];
-        resolve(base64);
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+
+        const MAX_DIM = 1024;
+        let { width, height } = img;
+
+        // Scale down if needed
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round(height * (MAX_DIM / width));
+            width = MAX_DIM;
+          } else {
+            width = Math.round(width * (MAX_DIM / height));
+            height = MAX_DIM;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to JPEG base64
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const base64 = dataUrl.split(',')[1];
+
+        resolve({ base64, mimeType: 'image/jpeg' });
       };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load image for compression'));
+      };
+
+      img.src = url;
     });
   }
 
