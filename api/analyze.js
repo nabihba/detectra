@@ -40,26 +40,44 @@ export default async function handler(req, res) {
     const ai = new GoogleGenAI({ apiKey });
     const startTime = Date.now();
 
-    // Send to Gemini for analysis
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
+    // Model fallback chain — try each until one works
+    const MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash-lite'];
+    let response = null;
+    let lastError = null;
+
+    for (const model of MODELS) {
+      try {
+        response = await ai.models.generateContent({
+          model,
+          contents: [
             {
-              inlineData: {
-                mimeType: mimeType,
-                data: image,
-              },
-            },
-            {
-              text: ANALYSIS_PROMPT,
+              role: 'user',
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: image,
+                  },
+                },
+                {
+                  text: ANALYSIS_PROMPT,
+                },
+              ],
             },
           ],
-        },
-      ],
-    });
+        });
+        break; // Success — stop trying
+      } catch (modelErr) {
+        lastError = modelErr;
+        console.warn(`Model ${model} failed: ${modelErr.message?.substring(0, 80)}`);
+        continue; // Try next model
+      }
+    }
+
+    if (!response) {
+      console.error('All models failed. Last error:', lastError?.message);
+      return res.status(503).json({ error: 'AI service temporarily unavailable. Please try again in a moment.' });
+    }
 
     const processingTime = Date.now() - startTime;
 
