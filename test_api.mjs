@@ -1,32 +1,46 @@
-import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
 
-const apiKey = process.env.GEMINI_API_KEY;
-const ai = new GoogleGenAI({ apiKey });
+const hfToken = process.env.HF_TOKEN;
 const testImagePath = "c:/Users/nabih/OneDrive/Desktop/ai_test/dataset/test/FAKE/0 (2).jpg";
-const imageBytes = fs.readFileSync(testImagePath);
-const base64 = imageBytes.toString("base64");
+const imageBuffer = fs.readFileSync(testImagePath);
 
-const models = ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash-001"];
+// Try the new router API endpoint
+const models = ["Organika/sdxl-detector", "umm-maybe/AI-image-detector"];
 
 for (const model of models) {
-  try {
-    console.log(`Testing ${model}...`);
-    const r = await ai.models.generateContent({
-      model,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { inlineData: { mimeType: "image/jpeg", data: base64 } },
-            { text: 'Is this AI-generated? Respond ONLY with JSON: {"verdict":"FAKE","confidence":0.9,"analysis":"reason"}' },
-          ],
+  console.log(`\nTesting ${model}...`);
+  
+  // Try new HF router endpoint
+  const urls = [
+    `https://router.huggingface.co/hf-inference/models/${model}`,
+    `https://api-inference.huggingface.co/models/${model}`,
+  ];
+  
+  for (const url of urls) {
+    try {
+      console.log(`  Trying: ${url}`);
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${hfToken}`,
+          "Content-Type": "application/octet-stream",
         },
-      ],
-    });
-    console.log(`✅ ${model} works! Response:`, r.text);
-    break; // Stop at first success
-  } catch (err) {
-    console.log(`❌ ${model}: ${err.message.substring(0, 100)}`);
+        body: imageBuffer,
+      });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        console.log(`  ❌ ${response.status}: ${text.substring(0, 200)}`);
+        continue;
+      }
+      
+      const result = await response.json();
+      console.log(`  ✅ Result:`, JSON.stringify(result, null, 2));
+      process.exit(0);
+    } catch (err) {
+      console.log(`  ❌ Error: ${err.message}`);
+    }
   }
 }
+
+console.log("\n❌ All attempts failed");
