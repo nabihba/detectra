@@ -30,12 +30,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Unsupported image format.' });
     }
 
-    // Check image size (base64 is ~33% larger than binary)
-    const estimatedSizeBytes = (image.length * 3) / 4;
-    if (estimatedSizeBytes > 10 * 1024 * 1024) {
-      return res.status(400).json({ error: 'Image too large. Maximum 10MB.' });
-    }
-
     // Initialize Gemini
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -44,7 +38,6 @@ export default async function handler(req, res) {
     }
 
     const ai = new GoogleGenAI({ apiKey });
-
     const startTime = Date.now();
 
     // Send to Gemini for analysis
@@ -66,26 +59,48 @@ export default async function handler(req, res) {
           ],
         },
       ],
-      config: {
-        responseMimeType: 'application/json',
-      },
     });
 
     const processingTime = Date.now() - startTime;
 
-    // Parse Gemini response
-    const rawText = response.text;
+    // Get the text response
+    const rawText = typeof response.text === 'function' ? response.text() : response.text;
+
+    if (!rawText) {
+      console.error('Empty response from Gemini');
+      return res.status(500).json({ error: 'AI returned an empty response. Try a different image.' });
+    }
+
+    // Parse JSON from response
     let parsed;
     try {
+      // Try direct JSON parse first
       parsed = JSON.parse(rawText);
     } catch {
-      // If JSON parsing fails, try to extract from markdown code blocks
-      const jsonMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/);
+      // Try extracting from markdown code blocks
+      const jsonMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[1]);
+        try {
+          parsed = JSON.parse(jsonMatch[1]);
+        } catch {
+          // Last resort: try to find JSON object in the text
+          const objMatch = rawText.match(/\{[\s\S]*\}/);
+          if (objMatch) {
+            parsed = JSON.parse(objMatch[0]);
+          } else {
+            console.error('Could not parse Gemini response:', rawText);
+            return res.status(500).json({ error: 'Failed to parse analysis result.' });
+          }
+        }
       } else {
-        console.error('Failed to parse Gemini response:', rawText);
-        return res.status(500).json({ error: 'Failed to parse analysis result.' });
+        // Try finding raw JSON object
+        const objMatch = rawText.match(/\{[\s\S]*\}/);
+        if (objMatch) {
+          parsed = JSON.parse(objMatch[0]);
+        } else {
+          console.error('No JSON found in Gemini response:', rawText);
+          return res.status(500).json({ error: 'Failed to parse analysis result.' });
+        }
       }
     }
 
@@ -95,7 +110,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json(result);
   } catch (err) {
-    console.error('Analysis error:', err);
+    console.error('Analysis error:', err.message || err);
     return res.status(500).json({
       error: 'Analysis failed. Please try again.',
     });
@@ -103,43 +118,23 @@ export default async function handler(req, res) {
 }
 
 // ─── Analysis Prompt ───
-const ANALYSIS_PROMPT = `You are Detectra, an expert AI-generated image forensics analyzer. Your job is to determine whether an uploaded image is AI-generated or a real photograph.
+const ANALYSIS_PROMPT = `You are an expert AI-generated image forensics analyzer. Determine whether this image is AI-generated or a real photograph.
 
-Analyze the image carefully for these indicators:
+Analyze for these indicators:
 
-**AI-Generated Indicators:**
-- Unnatural skin textures, plastic-looking surfaces
-- Inconsistent lighting or shadows
-- Distorted or extra fingers, hands, teeth
-- Background inconsistencies (melting objects, nonsensical architecture)
-- Overly smooth or perfect gradients
-- Repetitive patterns or textures
-- Text that is garbled or nonsensical
-- Unnatural eye reflections or asymmetry
-- Seamless, overly polished aesthetic typical of AI generation
-- Artifacts around hair, ears, or object boundaries
+AI-Generated clues: unnatural skin textures, inconsistent lighting/shadows, distorted fingers/hands/teeth, background inconsistencies, overly smooth gradients, garbled text, unnatural eye reflections, artifacts around hair/ears/boundaries.
 
-**Authentic Image Indicators:**
-- Natural noise and grain patterns consistent with camera sensors
-- Consistent lighting and physics
-- Natural imperfections (skin pores, fabric wrinkles, dust)
-- Proper perspective and depth of field
-- EXIF-like characteristics (lens distortion, chromatic aberration)
-- Authentic motion blur patterns
-- Natural color distribution
+Authentic clues: natural noise/grain, consistent lighting and physics, natural imperfections, proper perspective/depth of field, authentic motion blur, natural color distribution.
 
-Respond ONLY with a JSON object in this exact format:
-{
-  "verdict": "FAKE" or "REAL" or "UNCERTAIN",
-  "confidence": 0.0 to 1.0,
-  "analysis": "A 2-3 sentence explanation of your reasoning, mentioning specific artifacts or authentic features you identified."
-}
+You MUST respond with ONLY a valid JSON object (no markdown, no code blocks, no extra text) in this exact format:
+{"verdict": "FAKE", "confidence": 0.85, "analysis": "Your 2-3 sentence explanation here."}
 
 Rules:
+- verdict must be exactly "FAKE" or "REAL" or "UNCERTAIN"
+- confidence must be a number between 0.0 and 1.0
 - If confidence is below 0.55, set verdict to "UNCERTAIN"
-- Be honest. If you're not sure, say UNCERTAIN
-- The analysis field should be conversational and specific to this exact image
-- Do NOT mention that you are an AI or that you are guessing`;
+- The analysis should mention specific artifacts or features you found in this image
+- Respond with ONLY the JSON object, nothing else`;
 
 // ─── Normalize Result ───
 function normalizeResult(parsed) {
