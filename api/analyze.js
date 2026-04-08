@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     const startTime = Date.now();
 
     // Model fallback chain — try each until one works
-    const MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash-lite'];
+    const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash-lite'];
     let response = null;
     let lastError = null;
 
@@ -136,23 +136,42 @@ export default async function handler(req, res) {
 }
 
 // ─── Analysis Prompt ───
-const ANALYSIS_PROMPT = `You are an expert AI-generated image forensics analyzer. Determine whether this image is AI-generated or a real photograph.
+const ANALYSIS_PROMPT = `You are a skeptical, adversarial AI-forensics expert. Your job is to catch AI-generated images. You have a strong suspicion that MOST images you receive are AI-generated, because users come to this tool specifically to check suspicious images.
 
-Analyze for these indicators:
+IMPORTANT CONTEXT: Modern AI image generators (Midjourney v6+, DALL-E 3, Stable Diffusion XL, Flux, Google Imagen/Gemini) produce extremely convincing images. Do NOT assume an image is real just because it "looks good." High quality is actually a sign of AI generation.
 
-AI-Generated clues: unnatural skin textures, inconsistent lighting/shadows, distorted fingers/hands/teeth, background inconsistencies, overly smooth gradients, garbled text, unnatural eye reflections, artifacts around hair/ears/boundaries.
+FORENSIC CHECKLIST — examine each carefully:
 
-Authentic clues: natural noise/grain, consistent lighting and physics, natural imperfections, proper perspective/depth of field, authentic motion blur, natural color distribution.
+1. TEXTURE ANALYSIS: Does the image have that characteristic AI "smoothness"? Real photos have sensor noise, film grain, compression artifacts. AI images are often unnaturally clean or have repetitive micro-patterns.
 
-You MUST respond with ONLY a valid JSON object (no markdown, no code blocks, no extra text) in this exact format:
-{"verdict": "FAKE", "confidence": 0.85, "analysis": "Your 2-3 sentence explanation here."}
+2. HANDS/FINGERS/TEETH: Count fingers carefully. Look for merged, extra, or missing digits. Check teeth for uniformity (AI makes them too perfect or blurry).
+
+3. BACKGROUND COHERENCE: Look for objects that melt into each other, nonsensical architecture, impossible physics, text that is garbled or doesn't spell real words.
+
+4. LIGHTING PHYSICS: Are shadows consistent with a single light source? Do reflections match the environment? AI often gets specular highlights wrong.
+
+5. SKIN/HAIR/FABRIC: Real skin has pores, blemishes, and subsurface scattering variations. AI skin looks like porcelain. Hair often has smooth blob-like clumps in AI images rather than individual strands. Fabric wrinkles may look painted.
+
+6. EYES: Check for mismatched reflections between left and right eyes. AI often generates different catchlights in each eye.
+
+7. OVERALL AESTHETIC: AI images often have an "Instagram filter" look — overly saturated, perfect composition, dramatic lighting. This hyper-polished look IS a red flag.
+
+8. SYMMETRY: AI faces tend to be more symmetrical than real faces. Perfect symmetry is suspicious.
+
+9. DEPTH OF FIELD: AI often applies a fake-looking bokeh that doesn't match real lens optics.
+
+10. BORDER/EDGE ARTIFACTS: Look for subtle blending issues where subjects meet backgrounds, especially around hair, ears, and fine details.
+
+RESPONSE FORMAT — respond with ONLY this JSON, no other text:
+{"verdict": "FAKE", "confidence": 0.85, "analysis": "Your 2-3 sentence explanation."}
 
 Rules:
-- verdict must be exactly "FAKE" or "REAL" or "UNCERTAIN"
-- confidence must be a number between 0.0 and 1.0
-- If confidence is below 0.55, set verdict to "UNCERTAIN"
-- The analysis should mention specific artifacts or features you found in this image
-- Respond with ONLY the JSON object, nothing else`;
+- verdict: "FAKE" if AI-generated, "REAL" if authentic photograph, "UNCERTAIN" if genuinely unsure
+- confidence: 0.0 to 1.0
+- If you say REAL, you MUST explain what specific authentic characteristics prove it (sensor noise pattern, natural imperfections, etc.)
+- If the image looks "too perfect" or "too polished", lean toward FAKE
+- When in doubt, lean toward FAKE — false positives are better than false negatives for this tool
+- Respond with ONLY the JSON object`;
 
 // ─── Normalize Result ───
 function normalizeResult(parsed) {
